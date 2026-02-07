@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0057B8" />
+  <meta name="description" content="MenuLinx Admin — kitchen dashboard" />
+  <title>MenuLinx — Admin</title>
+
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <style>
+    *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#F2F2F2;color:#0A0A0A}
+    :root{--ap:#0057B8;--as:#00C8E8;--w:#fff;--g:#4A4A4A;--lg:#F2F2F2;--ok:#28A745;--warn:#FFC107;--bad:#DC3545}
+    header{background:linear-gradient(135deg,var(--ap),var(--as));color:#fff;padding:16px 18px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+    header h1{margin:0;font-size:18px}
+    header p{margin:6px 0 0;opacity:.92;font-size:13px}
+    .wrap{max-width:1200px;margin:0 auto;padding:18px}
+    .row{display:grid;grid-template-columns:1fr;gap:12px}
+    .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .stat{background:#fff;border-radius:14px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.07)}
+    .stat .v{font-weight:900;font-size:26px;margin-bottom:4px}
+    .stat .l{color:var(--g);font-size:13px}
+    .card{background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.07)}
+    .card h2{margin:0 0 12px;font-size:16px}
+    .order{border-left:5px solid var(--warn);padding:14px;border-radius:12px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    .order.accepted{border-left-color:var(--ap)}
+    .order.ready{border-left-color:var(--ok)}
+    .oh{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .oid{font-weight:900;font-size:16px}
+    .meta{color:var(--g);font-size:12.5px;margin-top:4px}
+    .badge{font-weight:900;font-size:12px;border-radius:999px;padding:7px 10px;display:inline-flex;align-items:center;gap:6px}
+    .bNew{background:var(--warn);color:#111}
+    .bAcc{background:var(--ap);color:#fff}
+    .bReady{background:var(--ok);color:#fff}
+    .items{background:var(--lg);border-radius:12px;padding:10px 12px;margin-top:10px}
+    .it{display:flex;justify-content:space-between;margin-bottom:6px;font-size:13.5px}
+    .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+    .btn{border:none;border-radius:10px;padding:10px 12px;font-weight:900;cursor:pointer}
+    .btnOk{background:var(--ok);color:#fff}
+    .btnAp{background:var(--ap);color:#fff}
+    .btnBad{background:var(--bad);color:#fff}
+    .btnLite{background:#111;color:#fff}
+    .eta{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .eta button{border:2px solid #e6e6e6;background:#fff;border-radius:999px;padding:8px 12px;font-weight:900;cursor:pointer}
+    .eta button.selected{border-color:var(--ap);background:rgba(0,87,184,.1)}
+    .hint{color:var(--g);font-size:12.5px;margin-top:8px}
+
+    /* PIN Gate */
+    .gate{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000}
+    .gate.hidden{display:none}
+    .panel{width:100%;max-width:420px;background:#fff;border-radius:18px;overflow:hidden}
+    .ph{padding:16px;border-bottom:1px solid #eee}
+    .ph h3{margin:0}
+    .pb{padding:16px}
+    .pin{display:flex;gap:10px;justify-content:center;margin:10px 0 16px}
+    .dot{width:16px;height:16px;border-radius:999px;border:2px solid #bbb}
+    .dot.on{background:var(--ap);border-color:var(--ap)}
+    .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .key{padding:14px 0;border-radius:12px;border:2px solid #e6e6e6;background:#fff;font-weight:900;font-size:16px;cursor:pointer}
+    .bar{display:flex;gap:10px;margin-top:12px}
+    .bar button{flex:1}
+
+    /* Print ticket */
+    .ticket{display:none}
+    @media print{
+      body *{visibility:hidden}
+      .ticket, .ticket *{visibility:visible}
+      .ticket{display:block;position:absolute;left:0;top:0;width:72mm;padding:10mm;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PIN Gate -->
+  <div class="gate" id="gate">
+    <div class="panel">
+      <div class="ph">
+        <h3>🍽️ Admin Access</h3>
+        <div class="hint">Enter 4-digit PIN</div>
+      </div>
+      <div class="pb">
+        <div class="pin" id="pinDots">
+          <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        </div>
+        <div class="pad" id="pad"></div>
+        <div class="bar">
+          <button class="btn btnBad" type="button" onclick="gate.clear()">Clear</button>
+          <button class="btn btnAp" type="button" onclick="gate.unlock()">Unlock</button>
+        </div>
+        <div class="hint" style="margin-top:10px">
+          Gen-1 security: local PIN only (prevents casual access). Change the PIN before demos.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <h1>MenuLinx Admin</h1>
+    <p id="sub">Kitchen dashboard</p>
+  </header>
+
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat"><div class="v" id="sOrders">0</div><div class="l">Open Orders</div></div>
+      <div class="stat"><div class="v" id="sPending">0</div><div class="l">New (unaccepted)</div></div>
+      <div class="stat"><div class="v" id="sRevenue">£0.00</div><div class="l">Total (open)</div></div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h2>Active Orders</h2>
+      <div id="orders"></div>
+      <div class="hint">Auto-refresh every 3 seconds. Tap “Print Ticket” to send to Wi-Fi printer via device print dialog.</div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h2>Menu (Gen-1 minimal)</h2>
+      <div class="hint">For Gen-1, you can keep menu changes manual. When you’re ready, we wire this to /api/menu-set for item edits + availability toggles.</div>
+      <button class="btn btnAp" type="button" onclick="admin.seedMenu()">Seed Demo Menu to KV</button>
+      <button class="btn btnLite" type="button" style="margin-left:8px" onclick="admin.forceRefresh()">Refresh Now</button>
+    </div>
+  </div>
+
+  <!-- Print ticket container -->
+  <div class="ticket" id="ticket"></div>
+
+  <script>
+    // --- CONFIG ---
+    const ADMIN_PIN = "1234";           // CHANGE THIS PER CAFE
+    const POLL_MS = 3000;
+
+    const el = (id) => document.getElementById(id);
+    const money = (n) => "£" + Number(n).toFixed(2);
+
+    const state = { pin:"", orders:[], lastNow:0 };
+
+    // --- PIN Gate ---
+    const gate = {
+      init(){
+        // keypad
+        const nums = ["1","2","3","4","5","6","7","8","9","0"];
+        const pad = el("pad");
+        pad.innerHTML = nums.map(n=>`<button class="key" type="button" onclick="gate.press('${n}')">${n}</button>`).join("")
+          + `<button class="key" type="button" onclick="gate.back()">←</button>`
+          + `<button class="key" type="button" onclick="gate.press('0')">0</button>`
+          + `<button class="key" type="button" onclick="gate.clear()">✕</button>`;
+        // if already unlocked locally
+        if (localStorage.getItem("menulinx_admin_unlocked") === "1") {
+          el("gate").classList.add("hidden");
+        } else {
+          el("gate").classList.remove("hidden");
+        }
+        this.renderDots();
+      },
+      press(n){
+        if (state.pin.length >= 4) return;
+        state.pin += n;
+        this.renderDots();
+        if (state.pin.length === 4) this.unlock(true);
+      },
+      back(){
+        state.pin = state.pin.slice(0,-1);
+        this.renderDots();
+      },
+      clear(){
+        state.pin = "";
+        this.renderDots();
+      },
+      renderDots(){
+        const dots = el("pinDots").querySelectorAll(".dot");
+        dots.forEach((d,i)=>d.classList.toggle("on", i < state.pin.length));
+      },
+      unlock(auto=false){
+        if (state.pin === ADMIN_PIN) {
+          localStorage.setItem("menulinx_admin_unlocked","1");
+          el("gate").classList.add("hidden");
+          this.clear();
+          if (!auto) alert("Unlocked");
+          admin.start();
+        } else {
+          if (!auto) alert("Wrong PIN");
+          this.clear();
+        }
+      }
+    };
+
+    // --- Admin logic ---
+    const admin = {
+      async start(){
+        // small label from menu
+        try{
+          const r = await fetch("/api/menu-get");
+          const j = await r.json();
+          if (j.ok && j.menu?.restaurantName) el("sub").textContent = j.menu.restaurantName + " — kitchen dashboard";
+        }catch{}
+        this.poll();
+        setInterval(()=>this.poll(), POLL_MS);
+      },
+
+      async poll(){
+        const r = await fetch("/api/order-list?since=0");
+        const j = await r.json().catch(()=>null);
+        if (!j || !j.ok) return;
+
+        state.orders = j.orders || [];
+        state.lastNow = j.now || Date.now();
+
+        this.renderStats();
+        this.renderOrders();
+      },
+
+      renderStats(){
+        const open = state.orders.length;
+        const pending = state.orders.filter(o => o.status === "new").length;
+        const revenue = state.orders.reduce((s,o)=>s+Number(o.total||0),0);
+        el("sOrders").textContent = open;
+        el("sPending").textContent = pending;
+        el("sRevenue").textContent = money(revenue);
+      },
+
+      renderOrders(){
+        const root = el("orders");
+        if (!state.orders.length) {
+          root.innerHTML = `<div class="hint" style="padding:14px 0">No orders yet. When a customer places an order it appears here instantly.</div>`;
+          return;
+        }
+
+        root.innerHTML = state.orders.map(o => {
+          const st = o.status || "new";
+          const cls = st === "accepted" ? "accepted" : st === "ready" ? "ready" : "";
+          const badge = st === "new" ? `<span class="badge bNew">New</span>`
+                      : st === "accepted" ? `<span class="badge bAcc">Preparing</span>`
+                      : `<span class="badge bReady">${st === "ready" ? "Ready" : st.toUpperCase()}</span>`;
+
+          const etaLine = st === "accepted" && o.eta_mins ? `<div class="hint">ETA preset: <strong>${o.eta_mins} mins</strong></div>` : "";
+
+          const deliveryLabel = o.deliveryType === "collection" ? "🏃 Collection" : "🚴 Delivery";
+
+          return `
+            <div class="order ${cls}" style="margin-bottom:12px">
+              <div class="oh">
+                <div>
+                  <div class="oid">#${String(o.id).slice(0,8).toUpperCase()}</div>
+                  <div class="meta">${deliveryLabel} • ${escapeHtml(o.customerName||"")} • ${escapeHtml(o.customerPhone||"")}</div>
+                </div>
+                ${badge}
+              </div>
+
+              <div class="items">
+                ${(o.items||[]).map(it=>`
+                  <div class="it">
+                    <span>${Number(it.quantity||1)}× ${escapeHtml(it.name||"")}</span>
+                    <span>${money((Number(it.price||0) * Number(it.quantity||1)))}</span>
+                  </div>
+                `).join("")}
+                <div class="it" style="margin-top:8px;font-weight:900">
+                  <span>Total</span><span>${money(o.total||0)}</span>
+                </div>
+              </div>
+
+              ${etaLine}
+
+              ${st === "new" ? `
+                <div class="eta">
+                  <button type="button" onclick="admin.selectEta('${o.id}',15)">15</button>
+                  <button type="button" onclick="admin.selectEta('${o.id}',30)" class="selected">30</button>
+                  <button type="button" onclick="admin.selectEta('${o.id}',45)">45</button>
+                  <button type="button" onclick="admin.selectEta('${o.id}',60)">60</button>
+                </div>
+                <div class="actions">
+                  <button class="btn btnOk" type="button" onclick="admin.accept('${o.id}')">✓ Accept</button>
+                  <button class="btn btnBad" type="button" onclick="admin.reject('${o.id}')">✗ Reject</button>
+                  <button class="btn btnLite" type="button" onclick="admin.printTicket('${o.id}')">🖨️ Print Ticket</button>
+                </div>
+              ` : st === "accepted" ? `
+                <div class="actions">
+                  <button class="btn btnOk" type="button" onclick="admin.markReady('${o.id}')">✓ Mark Ready</button>
+                  <button class="btn btnLite" type="button" onclick="admin.printTicket('${o.id}')">🖨️ Print Ticket</button>
+                </div>
+              ` : `
+                <div class="actions">
+                  <button class="btn btnAp" type="button" onclick="admin.markDespatched('${o.id}')">✓ Mark Despatched</button>
+                  <button class="btn btnAp" type="button" onclick="admin.markCollected('${o.id}')">✓ Mark Collected</button>
+                  <button class="btn btnBad" type="button" onclick="admin.complete('${o.id}')">✓ Complete (Remove)</button>
+                  <button class="btn btnLite" type="button" onclick="admin.printTicket('${o.id}')">🖨️ Print Ticket</button>
+                </div>
+              `}
+            </div>
+          `;
+        }).join("");
+      },
+
+      // per-order ETA stored locally by id for accepting
+      selectEta(id, mins){
+        localStorage.setItem("menulinx_eta_"+id, String(mins));
+        // cheap UI refresh to show selected states
+        this.renderOrders();
+        // mark selected button (quick fix): re-run selection in DOM
+        const container = el("orders");
+        container.querySelectorAll(".eta").forEach(etaWrap=>{
+          // not perfect but sufficient in Gen-1
+        });
+      },
+
+      getEta(id){
+        const v = Number(localStorage.getItem("menulinx_eta_"+id) || 30);
+        return [15,30,45,60].includes(v) ? v : 30;
+      },
+
+      async accept(id){
+        const eta = this.getEta(id);
+        await this.update(id, "accept", { eta_mins: eta });
+      },
+      async reject(id){
+        if (!confirm("Reject this order?")) return;
+        // simplest: just complete (remove) in Gen-1
+        await this.update(id, "complete");
+      },
+      async markReady(id){
+        await this.update(id, "ready");
+      },
+      async markDespatched(id){
+        await this.update(id, "despatched");
+      },
+      async markCollected(id){
+        await this.update(id, "collected");
+      },
+      async complete(id){
+        if (!confirm("Remove this order from the active list?")) return;
+        await this.update(id, "complete");
+      },
+
+      async update(id, action, extra={}){
+        const r = await fetch("/api/order-update",{
+          method:"POST",
+          headers:{ "content-type":"application/json" },
+          body: JSON.stringify({ id, action, ...extra })
+        });
+        const j = await r.json().catch(()=>null);
+        if (!r.ok || !j || !j.ok) {
+          alert((j && j.error) ? j.error : "Update failed");
+          return;
+        }
+        // refresh ASAP
+        this.poll();
+      },
+
+      printTicket(id){
+        const o = state.orders.find(x => x.id === id);
+        if (!o) return;
+
+        const lines = [];
+        lines.push("MENULINX — KITCHEN TICKET");
+        lines.push("-------------------------");
+        lines.push(`#${String(o.id).slice(0,8).toUpperCase()}`);
+        lines.push(o.deliveryType === "collection" ? "COLLECTION" : "DELIVERY");
+        lines.push("-------------------------");
+        (o.items||[]).forEach(it=>{
+          lines.push(`${Number(it.quantity||1)}x ${it.name}`);
+        });
+        lines.push("-------------------------");
+        lines.push(`NOTES: ${o.notes ? o.notes : "-"}`);
+        if (o.deliveryType !== "collection" && o.address) lines.push(`ADDR: ${o.address}`);
+        lines.push("-------------------------");
+        lines.push(`TOTAL: ${money(o.total||0)}`);
+        if (o.status === "accepted" && o.eta_mins) lines.push(`ETA: ${o.eta_mins} mins`);
+        lines.push("-------------------------");
+        lines.push(new Date(o.created_at || Date.now()).toLocaleString());
+
+        el("ticket").innerHTML = "<pre style='margin:0;white-space:pre-wrap'>" + escapeHtml(lines.join("\n")) + "</pre>";
+        window.print();
+      },
+
+      async seedMenu(){
+        const demoMenu = {
+          restaurantName: "Demo Cafe (Gen-1)",
+          openingHours: "Mon-Sun: 8am–6pm",
+          serviceArea: "Local delivery",
+          deliveryFee: 2.50,
+          logoEmoji: "☕",
+          items: [
+            { id:"1", name:"Full English Breakfast", description:"Eggs, bacon, sausage, beans, toast", price:8.95, category:"breakfast", emoji:"🍳", available:true },
+            { id:"2", name:"Avocado Toast", description:"Sourdough, smashed avocado, poached egg", price:7.50, category:"breakfast", emoji:"🥑", available:true },
+            { id:"3", name:"Club Sandwich", description:"Chicken, bacon, lettuce, tomato", price:9.95, category:"lunch", emoji:"🥪", available:true },
+            { id:"4", name:"Caesar Salad", description:"Romaine, parmesan, croutons", price:8.50, category:"lunch", emoji:"🥗", available:true },
+            { id:"5", name:"Cappuccino", description:"Rich espresso, steamed milk, foam", price:3.50, category:"drinks", emoji:"☕", available:true },
+            { id:"6", name:"Orange Juice", description:"Freshly squeezed", price:3.95, category:"drinks", emoji:"🍊", available:true },
+            { id:"7", name:"Chocolate Brownie", description:"Warm brownie, vanilla ice cream", price:5.95, category:"desserts", emoji:"🍫", available:true },
+            { id:"8", name:"Carrot Cake", description:"Homemade, cream cheese frosting", price:4.95, category:"desserts", emoji:"🥕", available:true }
+          ]
+        };
+
+        const r = await fetch("/api/menu-set",{
+          method:"POST",
+          headers:{ "content-type":"application/json" },
+          body: JSON.stringify(demoMenu)
+        });
+        const j = await r.json().catch(()=>null);
+        if (!r.ok || !j || !j.ok) return alert("Menu seed failed");
+        alert("Demo menu saved to KV.\n\nOpen /index.html to confirm customer menu is live.");
+      },
+
+      forceRefresh(){ this.poll(); }
+    };
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, (c)=>({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+      }[c]));
+    }
+
+    // Boot
+    gate.init();
+    if (localStorage.getItem("menulinx_admin_unlocked") === "1") admin.start();
+  </script>
+</body>
+</html>
