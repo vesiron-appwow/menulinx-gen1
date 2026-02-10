@@ -4,6 +4,8 @@ import type { APIRoute } from "astro";
 import { getEnv } from "../../../lib/kv";
 import { getVenue } from "../../../lib/venue";
 
+export const prerender = false; // ✅ REQUIRED FOR POST ON PAGES
+
 function json(ok: boolean, body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify({ ok, ...body }), {
     status,
