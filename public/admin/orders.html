@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>MenuLinx Admin — Orders</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #f5f5f5;
+    }
+
+    h1 {
+      margin-bottom: 12px;
+    }
+
+    .order {
+      background: #fff;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 12px;
+      border-left: 4px solid #2ec4b6;
+    }
+
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .order-meta {
+      font-size: 0.9em;
+      color: #555;
+      margin-bottom: 6px;
+    }
+
+    .items {
+      margin-left: 12px;
+      font-size: 0.95em;
+    }
+
+    .note {
+      margin-top: 6px;
+      font-style: italic;
+      color: #333;
+    }
+
+    .controls {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 6px 10px;
+      font-size: 0.9em;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      background: #2ec4b6;
+      color: #000;
+    }
+
+    button.secondary {
+      background: #ccc;
+    }
+
+    input[type="number"] {
+      width: 70px;
+      padding: 5px;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Orders</h1>
+  <div id="orders"></div>
+
+  <script src="/admin/orders.js"></script>
+</body>
+</html>

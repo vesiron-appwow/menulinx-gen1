@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>MenuLinx — Order Persistence Check</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 16px;
+      background: #f5f5f5;
+    }
+    input, button {
+      padding: 8px;
+      font-size: 1rem;
+    }
+    pre {
+      background: #fff;
+      padding: 12px;
+      border-radius: 4px;
+      margin-top: 12px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Order Persistence Check</h1>
+
+  <input id="orderId" placeholder="Enter Order ID (e.g. MLX-...)" />
+  <button onclick="check()">Check</button>
+
+  <pre id="result"></pre>
+
+  <script src="/admin/order-check.js"></script>
+</body>
+</html>
