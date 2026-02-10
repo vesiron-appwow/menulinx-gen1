@@ -1,7 +1,6 @@
 // src/pages/api/admin/orders.ts
 import type { APIRoute } from "astro";
 import { getEnv } from "../../../lib/kv";
-import { keyOrder } from "../../../lib/keys";
 
 export const GET: APIRoute = async ({ url, locals }) => {
   const { MENULINX_KV } = getEnv(locals);
@@ -14,23 +13,30 @@ export const GET: APIRoute = async ({ url, locals }) => {
     });
   }
 
-  // List all order keys
   const list = await MENULINX_KV.list({ prefix: "menulinx:orders:" });
-  const orders = [];
+  const orders: any[] = [];
 
   for (const key of list.keys) {
     const raw = await MENULINX_KV.get(key.name);
     if (!raw) continue;
 
-    const order = JSON.parse(raw);
+    let order;
+    try {
+      order = JSON.parse(raw);
+    } catch {
+      // ⚠️ Skip invalid / legacy / corrupt KV entries
+      continue;
+    }
+
     if (order.venueId === venueId) {
       orders.push(order);
     }
   }
 
-  // newest first
   orders.sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    (a, b) =>
+      new Date(b.createdAt).getTime() -
+      new Date(a.createdAt).getTime()
   );
 
   return new Response(JSON.stringify({ ok: true, orders }), {
@@ -38,3 +44,4 @@ export const GET: APIRoute = async ({ url, locals }) => {
     headers: { "content-type": "application/json" },
   });
 };
+
