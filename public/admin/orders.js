@@ -77,12 +77,13 @@ function renderControls(order) {
     `;
   }
 
-  return ""; // terminal states
+  return "";
 }
 
 async function acceptOrder(orderId) {
   const etaInput = document.getElementById(`eta-${orderId}`);
-  const eta_mins = etaInput && etaInput.value ? Number(etaInput.value) : undefined;
+  const eta_mins =
+    etaInput && etaInput.value ? Number(etaInput.value) : undefined;
 
   await sendUpdate(orderId, "ACCEPTED", eta_mins);
 }
@@ -98,3 +99,17 @@ async function sendUpdate(orderId, status, eta_mins) {
     body: JSON.stringify({
       venueId: VENUE_ID,
       orderId,
+      status,
+      eta_mins,
+    }),
+  });
+
+  // reload orders after update
+  await loadOrders();
+}
+
+// initial load
+loadOrders();
+
+// auto-refresh every 20s
+setInterval(loadOrders, 20000);
