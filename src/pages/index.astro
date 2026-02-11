@@ -15,7 +15,13 @@ import Layout from "../layouts/BaseLayout.astro";
   <input id="customerName" />
 
   <br /><br />
-  <button id="orderBtn" onclick="placeOrder()">Place Order</button>
+  <button id="orderBtn" onclick="placeOrder(const contact = document.getElementById("customerContact").value;
+
+if (!contact) {
+  alert("Enter customer contact");
+  return;
+}
+)">Place Order</button>
 
 <script>
 let menuData = null;
