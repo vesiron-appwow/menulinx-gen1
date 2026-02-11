@@ -2,105 +2,75 @@
 import Layout from "../layouts/BaseLayout.astro";
 ---
 
-<Layout title="MenuLinx">
-  <h1>Menu</h1>
+<Layout title="Menu">
 
-  <div id="menu"></div>
+<div id="menu"></div>
 
-  <h2>Basket</h2>
-  <ul id="basket"></ul>
-  <p><strong>Total: £<span id="total">0.00</span></strong></p>
-
-  <h3>Customer Name</h3>
-  <input id="customerName" />
-
-  <br /><br />
-  <button id="orderBtn" onclick="placeOrder(const contact = document.getElementById("customerContact").value;
-
-if (!contact) {
-  alert("Enter customer contact");
-  return;
-}
-)">Place Order</button>
+<div class="basket-bar">
+  <div>
+    <div><strong>Basket</strong></div>
+    <div>Total: £<span id="total">0.00</span></div>
+  </div>
+  <button onclick="checkout()">Checkout</button>
+</div>
 
 <script>
-let menuData = null;
 let basket = [];
+
+function renderBasket() {
+  const total = basket.reduce((sum, i) => sum + (i.price * i.qty), 0);
+  document.getElementById("total").textContent = total.toFixed(2);
+}
+
+function addItem(item) {
+  const existing = basket.find(i => i.id === item.id);
+  if (existing) existing.qty++;
+  else basket.push({ ...item, qty: 1 });
+  renderBasket();
+}
 
 async function loadMenu() {
   const r = await fetch("/api/menu?venueId=default");
   const data = await r.json();
+  const menu = data.menu;
 
-  if (!data.ok) {
-    document.getElementById("menu").innerText = "Menu unavailable";
-    return;
-  }
-
-  menuData = data.menu;
-  renderMenu();
-}
-
-function renderMenu() {
   const container = document.getElementById("menu");
   container.innerHTML = "";
 
-  menuData.sections.forEach(section => {
-    const h = document.createElement("h2");
-    h.innerText = section.title;
-    container.appendChild(h);
-
-    section.items.forEach(item => {
-      if (!item.available) return;
-
-      const btn = document.createElement("button");
-      btn.innerText =
-        `${item.name} - £${(item.pricePence/100).toFixed(2)}`;
-
-      btn.onclick = () => addToBasket(item);
-
-      container.appendChild(btn);
-      container.appendChild(document.createElement("br"));
-    });
+  menu.items.forEach(item => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `
+      <div style="font-weight:600">${item.name}</div>
+      <div style="color:#6b7280; font-size:14px">${item.description}</div>
+      <div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center">
+        <div>£${item.price.toFixed(2)}</div>
+        <button>Add</button>
+      </div>
+    `;
+    div.querySelector("button").onclick = () => addItem(item);
+    container.appendChild(div);
   });
 }
 
-function addToBasket(item) {
-  basket.push(item);
-  renderBasket();
-}
+async function checkout() {
+  if (!basket.length) return alert("Basket empty");
 
-function renderBasket() {
-  const ul = document.getElementById("basket");
-  ul.innerHTML = "";
-  let total = 0;
+  const name = prompt("Customer name");
+  if (!name) return;
 
-  basket.forEach(i => {
-    const li = document.createElement("li");
-    li.innerText = i.name;
-    ul.appendChild(li);
-    total += i.pricePence;
-  });
-
-  document.getElementById("total").innerText =
-    (total/100).toFixed(2);
-}
-
-async function placeOrder() {
-  const name = document.getElementById("customerName").value;
-
-  if (!name) {
-    alert("Enter customer name");
-    return;
-  }
+  const contact = prompt("Contact number");
+  if (!contact) return;
 
   const payload = {
     venueId: "default",
     customerName: name,
+    customerContact: contact,
     items: basket.map(i => ({
-      itemId: i.itemId,
+      itemId: i.id,
       name: i.name,
-      qty: 1,
-      pricePence: i.pricePence
+      qty: i.qty,
+      unitPrice: i.price
     }))
   };
 
@@ -112,16 +82,17 @@ async function placeOrder() {
 
   const data = await r.json();
 
-  if (!data.ok) {
-    alert(data.error);
+  if (!r.ok) {
+    alert(data.error || "Order failed");
     return;
   }
 
-  alert("Order placed: " + data.orderId);
+  alert("Order placed ✓");
   basket = [];
   renderBasket();
 }
 
 loadMenu();
 </script>
+
 </Layout>
