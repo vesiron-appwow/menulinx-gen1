@@ -1,14 +1,11 @@
-// src/pages/api/admin/menu-seed.ts
-
 import type { APIRoute } from "astro";
 import { getEnv } from "../../../lib/kv";
-import { getVenue, makeVenueDefaults, writeVenue } from "../../../lib/venue";
 import { keyMenu } from "../../../lib/keys";
 
 export const prerender = false;
 
-function json(ok: boolean, body: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify({ ok, ...body }), {
+function json(status: number, body: Record<string, unknown>) {
+  return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },
   });
@@ -18,74 +15,67 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const { MENULINX_KV } = getEnv(locals);
 
   const url = new URL(request.url);
-  const venueId = (url.searchParams.get("venueId") || "default").trim();
+  const venueId = String(url.searchParams.get("venueId") || "").trim();
 
   if (!venueId) {
-    return json(false, { error: "Missing venueId" }, 400);
-  }
-
-  // Ensure venue exists
-  let venue = await getVenue(MENULINX_KV, venueId);
-  if (!venue) {
-    venue = makeVenueDefaults(venueId);
-    await writeVenue(MENULINX_KV, venue);
-  }
-
-  const menuKey = keyMenu(venueId);
-
-  const existing = await MENULINX_KV.get(menuKey);
-  if (existing) {
-    return json(false, { error: "Menu already exists for venue" }, 409);
+    return json(400, { ok: false, error: "Missing venueId" });
   }
 
   const menu = {
     venueId,
-    restaurantName: venue.name || "MenuLinx Demo Venue",
-    openingHours: "Open today",
-    serviceArea: "Local delivery & collection",
-    deliveryFee: 2.5,
-    items: [
+    currency: "GBP",
+    updatedAt: Date.now(),
+    sections: [
       {
-        id: "burger-1",
-        name: "Classic Burger",
-        description: "Beef patty, cheese, lettuce, tomato",
-        price: 8.5,
-        category: "mains",
-        available: true,
+        sectionId: "mains",
+        title: "Mains",
+        items: [
+          {
+            itemId: "burger-1",
+            name: "Classic Burger",
+            description: "Beef patty, cheese, lettuce, tomato",
+            pricePence: 850,
+            available: true,
+          },
+          {
+            itemId: "burger-2",
+            name: "Veggie Burger",
+            description: "Plant-based patty with house sauce",
+            pricePence: 800,
+            available: true,
+          },
+        ],
       },
       {
-        id: "burger-2",
-        name: "Veggie Burger",
-        description: "Plant-based patty with house sauce",
-        price: 8.0,
-        category: "mains",
-        available: true,
+        sectionId: "sides",
+        title: "Sides",
+        items: [
+          {
+            itemId: "fries-1",
+            name: "Fries",
+            description: "Golden, lightly salted",
+            pricePence: 300,
+            available: true,
+          },
+        ],
       },
       {
-        id: "fries-1",
-        name: "Fries",
-        description: "Golden, lightly salted",
-        price: 3.0,
-        category: "sides",
-        available: true,
-      },
-      {
-        id: "drink-1",
-        name: "Soft Drink",
-        description: "Cola / Lemonade / Orange",
-        price: 2.0,
-        category: "drinks",
-        available: true,
+        sectionId: "drinks",
+        title: "Drinks",
+        items: [
+          {
+            itemId: "drink-1",
+            name: "Soft Drink",
+            description: "Cola / Lemonade / Orange",
+            pricePence: 200,
+            available: true,
+          },
+        ],
       },
     ],
-    createdAt: new Date().toISOString(),
   };
 
-  await MENULINX_KV.put(menuKey, JSON.stringify(menu));
+  await MENULINX_KV.put(keyMenu(venueId), JSON.stringify(menu));
 
-  return json(true, {
-    message: "Menu seeded",
-    venueId,
-    itemCount: menu.items.length,
-  });
+  return json(200, { ok: true, menu });
 };

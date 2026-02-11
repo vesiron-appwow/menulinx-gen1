@@ -15,7 +15,7 @@ import Layout from "../layouts/BaseLayout.astro";
   <input id="customerName" />
 
   <br /><br />
-  <button onclick="placeOrder()">Place Order</button>
+  <button id="orderBtn" onclick="placeOrder()">Place Order</button>
 
 <script>
 let menuData = null;
@@ -24,10 +24,12 @@ let basket = [];
 async function loadMenu() {
   const r = await fetch("/api/menu?venueId=default");
   const data = await r.json();
+
   if (!data.ok) {
     document.getElementById("menu").innerText = "Menu unavailable";
     return;
   }
+
   menuData = data.menu;
   renderMenu();
 }
@@ -42,9 +44,14 @@ function renderMenu() {
     container.appendChild(h);
 
     section.items.forEach(item => {
+      if (!item.available) return;
+
       const btn = document.createElement("button");
-      btn.innerText = `${item.name} - £${(item.pricePence/100).toFixed(2)}`;
+      btn.innerText =
+        `${item.name} - £${(item.pricePence/100).toFixed(2)}`;
+
       btn.onclick = () => addToBasket(item);
+
       container.appendChild(btn);
       container.appendChild(document.createElement("br"));
     });
@@ -68,11 +75,17 @@ function renderBasket() {
     total += i.pricePence;
   });
 
-  document.getElementById("total").innerText = (total/100).toFixed(2);
+  document.getElementById("total").innerText =
+    (total/100).toFixed(2);
 }
 
 async function placeOrder() {
   const name = document.getElementById("customerName").value;
+
+  if (!name) {
+    alert("Enter customer name");
+    return;
+  }
 
   const payload = {
     venueId: "default",
