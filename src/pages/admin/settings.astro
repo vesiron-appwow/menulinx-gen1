@@ -5,23 +5,65 @@ import Layout from "../../layouts/BaseLayout.astro";
 <Layout title="Venue Settings">
   <h1>Venue Settings</h1>
 
-  <label>
-    Name
-    <input id="name" />
-  </label>
+  <div style="max-width:400px;">
 
-  <label>
-    Status
-    <select id="status">
-      <option value="OPEN">OPEN</option>
-      <option value="CLOSED">CLOSED</option>
-    </select>
-  </label>
+    <label>
+      Name<br/>
+      <input id="name" style="width:100%;" />
+    </label>
 
-  <br /><br />
-  <button onclick="save()">Save</button>
+    <br/><br/>
+
+    <label>
+      Status<br/>
+      <select id="status" style="width:100%;">
+        <option value="OPEN">OPEN</option>
+        <option value="CLOSED">CLOSED</option>
+      </select>
+    </label>
+
+    <br/><br/>
+
+    <label>
+      Prep Minutes<br/>
+      <input id="prepMinutes" type="number" min="0" style="width:100%;" />
+    </label>
+
+    <br/><br/>
+
+    <label>
+      <input type="checkbox" id="collectionEnabled" />
+      Collection Enabled
+    </label>
+
+    <br/>
+
+    <label>
+      <input type="checkbox" id="deliveryEnabled" />
+      Delivery Enabled
+    </label>
+
+    <br/><br/>
+
+    <button onclick="save()">Save</button>
+    <span id="msg" style="margin-left:10px;"></span>
+
+  </div>
 
 <script>
+async function load() {
+  const r = await fetch("/api/admin/venue-status?venueId=default");
+  const data = await r.json();
+
+  if (!data.venue) return;
+
+  document.getElementById("name").value = data.venue.name || "";
+  document.getElementById("status").value = data.venue.status || "OPEN";
+  document.getElementById("prepMinutes").value = data.venue.prepMinutes || 15;
+  document.getElementById("collectionEnabled").checked = data.venue.collectionEnabled ?? true;
+  document.getElementById("deliveryEnabled").checked = data.venue.deliveryEnabled ?? false;
+}
+
 async function save() {
   await fetch("/api/admin/venue-settings", {
     method: "POST",
@@ -29,11 +71,19 @@ async function save() {
     body: JSON.stringify({
       venueId: "default",
       name: document.getElementById("name").value,
-      status: document.getElementById("status").value
+      status: document.getElementById("status").value,
+      prepMinutes: Number(document.getElementById("prepMinutes").value),
+      collectionEnabled: document.getElementById("collectionEnabled").checked,
+      deliveryEnabled: document.getElementById("deliveryEnabled").checked
     })
   });
 
-  alert("Saved");
+  document.getElementById("msg").textContent = "Saved ✓";
+  setTimeout(() => {
+    document.getElementById("msg").textContent = "";
+  }, 2000);
 }
+
+load();
 </script>
 </Layout>
