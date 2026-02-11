@@ -1,0 +1,40 @@
+---
+const { title } = Astro.props;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title ?? "MenuLinx"}</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        margin: 40px;
+        background: #f7f7f7;
+      }
+      h1, h2, h3 {
+        margin-top: 0;
+      }
+      button {
+        padding: 8px 12px;
+        margin: 4px 0;
+        cursor: pointer;
+      }
+      input {
+        padding: 6px;
+        margin: 4px 0;
+      }
+      section {
+        background: white;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 6px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      }
+    </style>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

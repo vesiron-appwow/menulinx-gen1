@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { getEnv } from "../../../lib/kv";
-import { getOrdersByVenue } from "../../../lib/orders";
+import { getVenue } from "../../../lib/venue";
 
 export const prerender = false;
 
@@ -17,14 +17,13 @@ export const GET: APIRoute = async ({ request, locals }) => {
   const url = new URL(request.url);
   const venueId = String(url.searchParams.get("venueId") || "").trim();
 
-  if (!venueId) {
-    return json(400, { ok: false, error: "Missing venueId" });
-  }
+  if (!venueId) return json(400, { ok: false, error: "Missing venueId" });
 
   try {
-    const orders = await getOrdersByVenue(MENULINX_KV, venueId);
-    return json(200, { ok: true, orders });
+    const venue = await getVenue(MENULINX_KV, venueId);
+    if (!venue) return json(404, { ok: false, error: "Venue not found" });
+    return json(200, { ok: true, venue });
   } catch {
-    return json(500, { ok: false, error: "Failed to load orders" });
+    return json(500, { ok: false, error: "Failed to load venue" });
   }
 };

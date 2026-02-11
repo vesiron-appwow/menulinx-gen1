@@ -1,4 +1,5 @@
 // src/lib/kv.ts
+
 import type { App } from "../types/app";
 
 export type KVNamespaceLike = {
@@ -9,15 +10,39 @@ export type KVNamespaceLike = {
 };
 
 export type RuntimeEnv = {
-  MENULINX_KV: KVNamespaceLike;
+  MENULINX_KV?: KVNamespaceLike;
 };
 
-export function getEnv(locals: App.Locals): RuntimeEnv {
-  const env = locals?.runtime?.env as RuntimeEnv | undefined;
-  if (!env?.MENULINX_KV) {
-    throw new Error("Missing Cloudflare KV binding: MENULINX_KV");
+const devStore = new Map<string, string>();
+
+const devKV: KVNamespaceLike = {
+  async get(key: string) {
+    return devStore.has(key) ? devStore.get(key)! : null;
+  },
+  async put(key: string, value: string) {
+    devStore.set(key, value);
+  },
+  async delete(key: string) {
+    devStore.delete(key);
+  },
+  async list(options?: { prefix?: string }) {
+    const keys = Array.from(devStore.keys())
+      .filter(k => !options?.prefix || k.startsWith(options.prefix))
+      .map(name => ({ name }));
+    return { keys };
   }
-  return env;
+};
+
+export function getEnv(locals: App.Locals): { MENULINX_KV: KVNamespaceLike } {
+  const env = locals?.runtime?.env as RuntimeEnv | undefined;
+
+  // If Cloudflare KV exists, use it
+  if (env?.MENULINX_KV) {
+    return { MENULINX_KV: env.MENULINX_KV };
+  }
+
+  // Otherwise use dev in-memory KV
+  return { MENULINX_KV: devKV };
 }
 
 export async function kvGetJSON<T>(

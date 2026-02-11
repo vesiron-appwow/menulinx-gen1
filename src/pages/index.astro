@@ -1,0 +1,108 @@
+---
+import Layout from "../layouts/BaseLayout.astro";
+---
+
+<Layout title="MenuLinx">
+  <h1>Menu</h1>
+
+  <div id="menu"></div>
+
+  <h2>Basket</h2>
+  <ul id="basket"></ul>
+  <p><strong>Total: £<span id="total">0.00</span></strong></p>
+
+  <h3>Customer Name</h3>
+  <input id="customerName" />
+
+  <br /><br />
+  <button onclick="placeOrder()">Place Order</button>
+
+<script>
+let menuData = null;
+let basket = [];
+
+async function loadMenu() {
+  const r = await fetch("/api/menu?venueId=default");
+  const data = await r.json();
+  if (!data.ok) {
+    document.getElementById("menu").innerText = "Menu unavailable";
+    return;
+  }
+  menuData = data.menu;
+  renderMenu();
+}
+
+function renderMenu() {
+  const container = document.getElementById("menu");
+  container.innerHTML = "";
+
+  menuData.sections.forEach(section => {
+    const h = document.createElement("h2");
+    h.innerText = section.title;
+    container.appendChild(h);
+
+    section.items.forEach(item => {
+      const btn = document.createElement("button");
+      btn.innerText = `${item.name} - £${(item.pricePence/100).toFixed(2)}`;
+      btn.onclick = () => addToBasket(item);
+      container.appendChild(btn);
+      container.appendChild(document.createElement("br"));
+    });
+  });
+}
+
+function addToBasket(item) {
+  basket.push(item);
+  renderBasket();
+}
+
+function renderBasket() {
+  const ul = document.getElementById("basket");
+  ul.innerHTML = "";
+  let total = 0;
+
+  basket.forEach(i => {
+    const li = document.createElement("li");
+    li.innerText = i.name;
+    ul.appendChild(li);
+    total += i.pricePence;
+  });
+
+  document.getElementById("total").innerText = (total/100).toFixed(2);
+}
+
+async function placeOrder() {
+  const name = document.getElementById("customerName").value;
+
+  const payload = {
+    venueId: "default",
+    customerName: name,
+    items: basket.map(i => ({
+      itemId: i.itemId,
+      name: i.name,
+      qty: 1,
+      pricePence: i.pricePence
+    }))
+  };
+
+  const r = await fetch("/api/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await r.json();
+
+  if (!data.ok) {
+    alert(data.error);
+    return;
+  }
+
+  alert("Order placed: " + data.orderId);
+  basket = [];
+  renderBasket();
+}
+
+loadMenu();
+</script>
+</Layout>

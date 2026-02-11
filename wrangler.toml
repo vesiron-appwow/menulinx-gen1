@@ -1,0 +1,9 @@
+name = "menulinx-gen1"
+main = "dist/_worker.js"
+compatibility_date = "2026-02-11"
+
+# KV Namespace binding
+[[kv_namespaces]]
+binding = "MENULINX_KV"
+id = "ef062010915c4618b4c9276219f20173"
+preview_id = "af18e2d695534220b2d427b2cc4ab3a5"
