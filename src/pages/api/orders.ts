@@ -1,100 +1,73 @@
 import type { APIRoute } from "astro";
-import { getEnv } from "../../lib/kv";
-import { getVenue } from "../../lib/venue";
-import { newOrderId, writeOrder, getOrdersByVenue } from "../../lib/orders";
+import { getKV } from "../../lib/kv";
 
-export const prerender = false;
-
-function json(status: number, body: Record<string, unknown>) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
+function generateOrderId() {
+  const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const time = Date.now().toString(36).toUpperCase();
+  return `MLX-${time}-${rand}`;
 }
 
-export const GET: APIRoute = async ({ request, locals }) => {
-  const { MENULINX_KV } = getEnv(locals);
-  const url = new URL(request.url);
-  const venueId = String(url.searchParams.get("venueId") || "").trim();
+export const POST: APIRoute = async ({ request }) => {
+  const body = await request.json();
+  const { venueId, customerName, customerContact, items } = body;
 
-  if (!venueId) return json(400, { ok: false, error: "Missing venueId" });
-
-  try {
-    const orders = await getOrdersByVenue(MENULINX_KV, venueId);
-    return json(200, { ok: true, orders });
-  } catch {
-    return json(500, { ok: false, error: "Failed to load orders" });
-  }
-};
-
-export const POST: APIRoute = async ({ request, locals }) => {
-  const { MENULINX_KV } = getEnv(locals);
-
-  let payload: any;
-  try {
-    payload = await request.json();
-  } catch {
-    return json(400, { ok: false, error: "Invalid JSON" });
+  if (!venueId || !customerName || !customerContact || !items?.length) {
+    return new Response(JSON.stringify({ ok: false }), { status: 400 });
   }
 
-  const venueId = String(payload?.venueId || "").trim();
-  if (!venueId) return json(400, { ok: false, error: "Missing venueId" });
-
-  const venue = await getVenue(MENULINX_KV, venueId);
-  if (!venue) return json(400, { ok: false, error: "Venue not found" });
-
-  if (venue.status !== "OPEN") {
-    return json(403, { ok: false, error: "Venue is closed" });
+  const kv = getKV();
+  const menuRaw = await kv.get(`menu:${venueId}`);
+  if (!menuRaw) {
+    return new Response(JSON.stringify({ ok: false }), { status: 404 });
   }
 
-  const customerName = String(payload?.customerName || "").trim();
-  if (!customerName) return json(400, { ok: false, error: "Missing customerName" });
+  const menu = JSON.parse(menuRaw);
 
-  const items = Array.isArray(payload?.items) ? payload.items : [];
-  if (!items.length) return json(400, { ok: false, error: "No items" });
+  let subtotalPence = 0;
 
-  const cleanItems = items
-    .map((i: any) => ({
-      itemId: String(i.itemId || "").trim(),
-      name: String(i.name || "").trim(),
-      qty: Number(i.qty || 0),
-      pricePence: Number(i.pricePence || 0),
-    }))
-    .filter((i: any) => i.name && i.qty > 0);
+  const normalisedItems = items.map((item: any) => {
+    const menuItem = menu.items.find((m: any) => m.id === item.itemId);
+    if (!menuItem) return null;
 
-  if (!cleanItems.length) {
-    return json(400, { ok: false, error: "No valid items" });
-  }
+    const pricePence = Math.round(menuItem.price * 100);
+    subtotalPence += pricePence * item.qty;
 
-  const subtotalPence = cleanItems.reduce(
-    (sum: number, i: any) => sum + i.pricePence * i.qty,
-    0
-  );
-
-  const orderId = newOrderId();
+    return {
+      itemId: menuItem.id,
+      name: menuItem.name,
+      qty: item.qty,
+      pricePence
+    };
+  }).filter(Boolean);
 
   const order = {
-    orderId,
+    orderId: generateOrderId(),
     venueId,
-    status: "PLACED",
+    status: "NEW",
     createdAt: Date.now(),
     updatedAt: Date.now(),
     customer: {
       name: customerName,
+      contact: customerContact
     },
     fulfilment: {
-      method: "COLLECTION",
+      method: "COLLECTION"
     },
-    items: cleanItems,
+    items: normalisedItems,
     totals: {
-      subtotalPence,
-    },
+      subtotalPence
+    }
   };
 
-  try {
-    await writeOrder(MENULINX_KV, order);
-    return json(200, { ok: true, orderId });
-  } catch {
-    return json(500, { ok: false, error: "Failed to create order" });
-  }
+  const ordersKey = `orders:${venueId}`;
+  const existingRaw = await kv.get(ordersKey);
+  const existing = existingRaw ? JSON.parse(existingRaw) : [];
+
+  existing.unshift(order);
+
+  await kv.put(ordersKey, JSON.stringify(existing));
+
+  return new Response(JSON.stringify({ ok: true }), {
+    headers: { "Content-Type": "application/json" }
+  });
 };
