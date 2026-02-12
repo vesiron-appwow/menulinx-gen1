@@ -1,98 +1,139 @@
 ---
-import Layout from "../layouts/BaseLayout.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
 ---
 
-<Layout title="Menu">
+<BaseLayout title="Menu">
+  <div id="menu"></div>
 
-<div id="menu"></div>
-
-<div class="basket-bar">
-  <div>
-    <div><strong>Basket</strong></div>
-    <div>Total: £<span id="total">0.00</span></div>
+  <div class="card">
+    <h3>Your Details</h3>
+    <input id="custName" placeholder="Customer Name" />
+    <br /><br />
+    <input id="custContact" placeholder="Phone / Email" />
   </div>
-  <button onclick="checkout()">Checkout</button>
-</div>
 
-<script>
+  <div id="basketContainer"></div>
+
+  <div class="basket-bar">
+    <div>Total: £<span id="total">0.00</span></div>
+    <button id="checkoutBtn">Place Order</button>
+  </div>
+
+<script type="module">
 let basket = [];
+let menuData = null;
 
-function renderBasket() {
-  const total = basket.reduce((sum, i) => sum + (i.price * i.qty), 0);
-  document.getElementById("total").textContent = total.toFixed(2);
-}
-
-function addItem(item) {
-  const existing = basket.find(i => i.id === item.id);
-  if (existing) existing.qty++;
-  else basket.push({ ...item, qty: 1 });
-  renderBasket();
-}
+const menuEl = document.getElementById("menu");
+const basketEl = document.getElementById("basketContainer");
+const totalEl = document.getElementById("total");
+const checkoutBtn = document.getElementById("checkoutBtn");
 
 async function loadMenu() {
-  const r = await fetch("/api/menu?venueId=default");
-  const data = await r.json();
-  const menu = data.menu;
+  const res = await fetch("/api/menu?venueId=default", {
+    cache: "no-store"
+  });
+  const data = await res.json();
+  menuData = data.menu;
+  renderMenu();
+}
 
-  const container = document.getElementById("menu");
-  container.innerHTML = "";
+function renderMenu() {
+  menuEl.innerHTML = "";
 
-  menu.items.forEach(item => {
+  menuData.items.forEach(item => {
     const div = document.createElement("div");
     div.className = "card";
     div.innerHTML = `
-      <div style="font-weight:600">${item.name}</div>
-      <div style="color:#6b7280; font-size:14px">${item.description}</div>
-      <div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center">
-        <div>£${item.price.toFixed(2)}</div>
-        <button>Add</button>
-      </div>
+      <strong>${item.name}</strong><br/>
+      <small>${item.description}</small><br/><br/>
+      £${item.price.toFixed(2)}<br/><br/>
+      <button>Add</button>
     `;
-    div.querySelector("button").onclick = () => addItem(item);
-    container.appendChild(div);
+
+    div.querySelector("button").onclick = () => {
+      basket.push({
+        itemId: item.id,
+        name: item.name,
+        qty: 1
+      });
+      renderBasket();
+    };
+
+    menuEl.appendChild(div);
   });
 }
 
-async function checkout() {
-  if (!basket.length) return alert("Basket empty");
+function renderBasket() {
+  basketEl.innerHTML = "";
+  let total = 0;
 
-  const name = prompt("Customer name");
-  if (!name) return;
+  basket.forEach((item, index) => {
+    const price = menuData.items.find(i => i.id === item.itemId).price;
+    total += price * item.qty;
 
-  const contact = prompt("Contact number");
-  if (!contact) return;
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `
+      ${item.name} x ${item.qty}
+      <button class="secondary" style="float:right;">Remove</button>
+    `;
 
-  const payload = {
-    venueId: "default",
-    customerName: name,
-    customerContact: contact,
-    items: basket.map(i => ({
-      itemId: i.id,
-      name: i.name,
-      qty: i.qty,
-      unitPrice: i.price
-    }))
-  };
+    div.querySelector("button").onclick = () => {
+      basket.splice(index, 1);
+      renderBasket();
+    };
 
-  const r = await fetch("/api/orders", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+    basketEl.appendChild(div);
   });
 
-  const data = await r.json();
+  totalEl.textContent = total.toFixed(2);
+}
 
-  if (!r.ok) {
-    alert(data.error || "Order failed");
+checkoutBtn.onclick = async () => {
+  if (basket.length === 0) {
+    alert("Basket empty");
     return;
   }
 
-  alert("Order placed ✓");
-  basket = [];
-  renderBasket();
-}
+  const name = document.getElementById("custName").value.trim();
+  const contact = document.getElementById("custContact").value.trim();
+
+  if (!name || !contact) {
+    alert("Enter name and contact");
+    return;
+  }
+
+  checkoutBtn.disabled = true;
+  checkoutBtn.textContent = "Sending...";
+
+  const res = await fetch("/api/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify({
+      venueId: "default",
+      customerName: name,
+      customerContact: contact,
+      items: basket
+    })
+  });
+
+  const result = await res.json();
+
+  if (result.ok) {
+    alert("Order placed successfully");
+    basket = [];
+    document.getElementById("custName").value = "";
+    document.getElementById("custContact").value = "";
+    renderBasket();
+  } else {
+    alert("Order failed");
+  }
+
+  checkoutBtn.disabled = false;
+  checkoutBtn.textContent = "Place Order";
+};
 
 loadMenu();
 </script>
-
-</Layout>
+</BaseLayout>
