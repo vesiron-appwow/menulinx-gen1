@@ -1,59 +1,61 @@
 import type { APIRoute } from "astro";
 import { getKV } from "../../lib/kv";
 
-function generateOrderId() {
-  const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
-  const time = Date.now().toString(36).toUpperCase();
-  return `MLX-${time}-${rand}`;
-}
-
 export const POST: APIRoute = async ({ request }) => {
   const body = await request.json();
-  const { venueId, customerName, customerContact, items } = body;
 
-  if (!venueId || !customerName || !customerContact || !items?.length) {
-    return new Response(JSON.stringify({ ok: false }), { status: 400 });
+  const { venueId, customer, fulfilment, items } = body;
+
+  if (!venueId) {
+    return new Response(JSON.stringify({ ok: false, error: "Missing venueId" }), { status: 400 });
   }
 
-  const kv = getKV();
+  if (!customer?.name) {
+    return new Response(JSON.stringify({ ok: false, error: "Missing customer name" }), { status: 400 });
+  }
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return new Response(JSON.stringify({ ok: false, error: "No items" }), { status: 400 });
+  }
+
+  const kv = await getKV();
+
   const menuRaw = await kv.get(`menu:${venueId}`);
   if (!menuRaw) {
-    return new Response(JSON.stringify({ ok: false }), { status: 404 });
+    return new Response(JSON.stringify({ ok: false, error: "Menu not found" }), { status: 404 });
   }
 
   const menu = JSON.parse(menuRaw);
 
   let subtotalPence = 0;
 
-  const normalisedItems = items.map((item: any) => {
-    const menuItem = menu.items.find((m: any) => m.id === item.itemId);
-    if (!menuItem) return null;
-
-    const pricePence = Math.round(menuItem.price * 100);
-    subtotalPence += pricePence * item.qty;
+  const resolvedItems = items.map((i: any) => {
+    const menuItem = menu.items.find((m: any) => m.id === i.itemId);
+    const pricePence = menuItem ? Math.round(menuItem.price * 100) : 0;
+    subtotalPence += pricePence * i.qty;
 
     return {
-      itemId: menuItem.id,
-      name: menuItem.name,
-      qty: item.qty,
+      itemId: i.itemId,
+      name: menuItem?.name || i.name,
+      qty: i.qty,
       pricePence
     };
-  }).filter(Boolean);
+  });
+
+  const orderId = `MLX-${Date.now().toString(36).toUpperCase()}`;
 
   const order = {
-    orderId: generateOrderId(),
+    orderId,
     venueId,
-    status: "NEW",
+    status: "PLACED",
     createdAt: Date.now(),
     updatedAt: Date.now(),
     customer: {
-      name: customerName,
-      contact: customerContact
+      name: customer.name,
+      contact: customer.contact || ""
     },
-    fulfilment: {
-      method: "COLLECTION"
-    },
-    items: normalisedItems,
+    fulfilment: fulfilment || { method: "COLLECTION" },
+    items: resolvedItems,
     totals: {
       subtotalPence
     }
@@ -67,7 +69,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   await kv.put(ordersKey, JSON.stringify(existing));
 
-  return new Response(JSON.stringify({ ok: true }), {
+  return new Response(JSON.stringify({ ok: true, orderId }), {
     headers: { "Content-Type": "application/json" }
   });
 };
