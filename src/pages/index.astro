@@ -3,137 +3,119 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 ---
 
 <BaseLayout title="Menu">
-  <div id="menu"></div>
 
-  <div class="card">
-    <h3>Your Details</h3>
-    <input id="custName" placeholder="Customer Name" />
-    <br /><br />
-    <input id="custContact" placeholder="Phone / Email" />
-  </div>
+<div id="menu"></div>
 
-  <div id="basketContainer"></div>
+<div class="card">
+  <input id="customerName" placeholder="Your name" />
+  <input id="customerContact" placeholder="Telephone number" style="margin-top:8px;" />
+</div>
 
-  <div class="basket-bar">
-    <div>Total: £<span id="total">0.00</span></div>
-    <button id="checkoutBtn">Place Order</button>
-  </div>
+<div class="basket-bar">
+  <div>Total: £<span id="total">0.00</span></div>
+  <button id="checkout">Place Order</button>
+</div>
 
-<script type="module">
+<script>
+let menu = null;
 let basket = [];
-let menuData = null;
 
-const menuEl = document.getElementById("menu");
-const basketEl = document.getElementById("basketContainer");
-const totalEl = document.getElementById("total");
-const checkoutBtn = document.getElementById("checkoutBtn");
+function formatPrice(pence) {
+  return (pence / 100).toFixed(2);
+}
 
-async function loadMenu() {
-  const res = await fetch("/api/menu?venueId=default", {
-    cache: "no-store"
+function calculateTotal() {
+  let total = 0;
+  basket.forEach(item => {
+    total += item.pricePence * item.qty;
   });
-  const data = await res.json();
-  menuData = data.menu;
-  renderMenu();
+  document.getElementById("total").innerText = formatPrice(total);
 }
 
 function renderMenu() {
-  menuEl.innerHTML = "";
+  const container = document.getElementById("menu");
+  container.innerHTML = "";
 
-  menuData.items.forEach(item => {
-    const div = document.createElement("div");
-    div.className = "card";
-    div.innerHTML = `
+  menu.items.forEach(item => {
+    const pricePence = Math.round(item.price * 100);
+
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
       <strong>${item.name}</strong><br/>
-      <small>${item.description}</small><br/><br/>
+      <small>${item.description}</small><br/>
       £${item.price.toFixed(2)}<br/><br/>
       <button>Add</button>
     `;
 
-    div.querySelector("button").onclick = () => {
-      basket.push({
-        itemId: item.id,
-        name: item.name,
-        qty: 1
-      });
-      renderBasket();
+    card.querySelector("button").onclick = () => {
+      const existing = basket.find(b => b.itemId === item.id);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        basket.push({
+          itemId: item.id,
+          name: item.name,
+          qty: 1,
+          pricePence
+        });
+      }
+      calculateTotal();
     };
 
-    menuEl.appendChild(div);
+    container.appendChild(card);
   });
 }
 
-function renderBasket() {
-  basketEl.innerHTML = "";
-  let total = 0;
-
-  basket.forEach((item, index) => {
-    const price = menuData.items.find(i => i.id === item.itemId).price;
-    total += price * item.qty;
-
-    const div = document.createElement("div");
-    div.className = "card";
-    div.innerHTML = `
-      ${item.name} x ${item.qty}
-      <button class="secondary" style="float:right;">Remove</button>
-    `;
-
-    div.querySelector("button").onclick = () => {
-      basket.splice(index, 1);
-      renderBasket();
-    };
-
-    basketEl.appendChild(div);
-  });
-
-  totalEl.textContent = total.toFixed(2);
+async function loadMenu() {
+  const res = await fetch("/api/menu?venueId=default");
+  const data = await res.json();
+  menu = data.menu;
+  renderMenu();
 }
 
-checkoutBtn.onclick = async () => {
-  if (basket.length === 0) {
+document.getElementById("checkout").onclick = async () => {
+  if (!basket.length) {
     alert("Basket empty");
     return;
   }
 
-  const name = document.getElementById("custName").value.trim();
-  const contact = document.getElementById("custContact").value.trim();
+  const customerName = document.getElementById("customerName").value;
+  const customerContact = document.getElementById("customerContact").value;
 
-  if (!name || !contact) {
-    alert("Enter name and contact");
+  if (!customerName || !customerContact) {
+    alert("Name and telephone required");
     return;
   }
 
-  checkoutBtn.disabled = true;
-  checkoutBtn.textContent = "Sending...";
+  const payload = {
+    venueId: "default",
+    customerName,
+    customerContact,
+    items: basket.map(b => ({
+      itemId: b.itemId,
+      qty: b.qty
+    }))
+  };
 
   const res = await fetch("/api/orders", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-    body: JSON.stringify({
-      venueId: "default",
-      customerName: name,
-      customerContact: contact,
-      items: basket
-    })
+    body: JSON.stringify(payload)
   });
 
-  const result = await res.json();
+  const data = await res.json();
 
-  if (result.ok) {
+  if (data.ok) {
     alert("Order placed successfully");
     basket = [];
-    document.getElementById("custName").value = "";
-    document.getElementById("custContact").value = "";
-    renderBasket();
+    calculateTotal();
+    document.getElementById("customerName").value = "";
+    document.getElementById("customerContact").value = "";
   } else {
     alert("Order failed");
   }
-
-  checkoutBtn.disabled = false;
-  checkoutBtn.textContent = "Place Order";
 };
 
 loadMenu();
 </script>
-</BaseLayout>
